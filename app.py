@@ -1,4 +1,18 @@
 import streamlit as st
+import json
+from datetime import datetime
+import uuid
+
+def load_meals():
+    try:
+        with open('meals.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"meals": []}
+
+def save_meals(meals_data):
+    with open('meals.json', 'w') as f:
+        json.dump(meals_data, f, indent=2)
 
 # Sidebar
 with st.sidebar:
@@ -22,11 +36,31 @@ with st.form("meal_form"):
     submitted = st.form_submit_button("Log Meal")
     
     if submitted and meal_input:
+        # Load existing meals
+        meals_data = load_meals()
+        
+        # Create new meal entry
+        new_meal = {
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat(),
+            "description": meal_input,
+            "macros": {
+                "protein": 25,  # Dummy value for now
+                "carbs": 45,    # Dummy value for now
+                "fat": 12       # Dummy value for now
+            }
+        }
+        
+        # Add new meal and save
+        meals_data["meals"].append(new_meal)
+        save_meals(meals_data)
+        
         st.write("### Macro Breakdown")
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Protein", "25g", "17% of goal")
+            protein_percent = (new_meal["macros"]["protein"] / protein_goal) * 100
+            st.metric("Protein", f"{new_meal['macros']['protein']}g", f"{protein_percent:.0f}% of goal")
         with col2:
-            st.metric("Carbs", "45g")
+            st.metric("Carbs", f"{new_meal['macros']['carbs']}g")
         with col3:
-            st.metric("Fat", "12g") 
+            st.metric("Fat", f"{new_meal['macros']['fat']}g") 
