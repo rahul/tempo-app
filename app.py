@@ -42,6 +42,8 @@ def calculate_daily_totals(meals):
     for meal in meals:
         for macro in totals:
             totals[macro] += meal["macros"][macro]
+    # Calculate total calories
+    totals["calories"] = (totals["protein"] * 4) + (totals["carbs"] * 4) + (totals["fat"] * 9)
     return totals
 
 def display_meal_card(meal, show_date=True, tab_name=""):
@@ -169,17 +171,33 @@ with tab1:
 
     with st.container(border=True):
         st.write("### Today's Progress")
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             protein_diff = daily_totals["protein"] - protein_goal
             protein_percent = (daily_totals["protein"] / protein_goal) * 100
+            delta_color = "normal"  # default color
+            if protein_percent > 120:
+                delta_color = "inverse"  # red when over 120%
+            elif 95 <= protein_percent <= 105:
+                delta_color = "normal"  # green when within ±5%
             st.metric("Protein", f"{daily_totals['protein']}g", 
                      f"{'+' if protein_diff > 0 else ''}{protein_diff}g",
-                     delta_color="inverse" if protein_percent > 120 else "normal")
+                     delta_color=delta_color)
         with col2:
             st.metric("Carbs", f"{daily_totals['carbs']}g")
         with col3:
             st.metric("Fat", f"{daily_totals['fat']}g")
+        with col4:
+            calories_diff = daily_totals["calories"] - daily_calories
+            calories_percent = (daily_totals["calories"] / daily_calories) * 100
+            delta_color = "normal"  # default color
+            if calories_percent > 110:
+                delta_color = "inverse"  # red when over 110%
+            elif 90 <= calories_percent <= 110:
+                delta_color = "normal"  # green when within ±10%
+            st.metric("Calories", f"{daily_totals['calories']} kcal", 
+                     f"{'+' if calories_diff > 0 else ''}{calories_diff} kcal",
+                     delta_color=delta_color)
 
     # Meal logging
     st.subheader("What did you eat today?")
