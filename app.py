@@ -160,8 +160,11 @@ with tab1:
         st.write("### Today's Progress")
         col1, col2, col3 = st.columns(3)
         with col1:
+            protein_diff = daily_totals["protein"] - protein_goal
             protein_percent = (daily_totals["protein"] / protein_goal) * 100
-            st.metric("Protein", f"{daily_totals['protein']}g", f"{protein_percent:.0f}% of goal")
+            st.metric("Protein", f"{daily_totals['protein']}g", 
+                     f"{'+' if protein_diff > 0 else ''}{protein_diff}g",
+                     delta_color="inverse" if protein_percent > 120 else "normal")
         with col2:
             st.metric("Carbs", f"{daily_totals['carbs']}g")
         with col3:
@@ -199,8 +202,7 @@ with tab1:
         st.write("### Macro Breakdown")
         col1, col2, col3 = st.columns(3)
         with col1:
-            protein_percent = (st.session_state.pending_meal["macros"]["protein"] / protein_goal) * 100
-            st.metric("Protein", f"{st.session_state.pending_meal['macros']['protein']}g", f"{protein_percent:.0f}% of goal")
+            st.metric("Protein", f"{st.session_state.pending_meal['macros']['protein']}g")
         with col2:
             st.metric("Carbs", f"{st.session_state.pending_meal['macros']['carbs']}g")
         with col3:
