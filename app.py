@@ -54,6 +54,8 @@ def display_meal_card(meal, show_date=True, tab_name=""):
             meal_time = datetime.fromisoformat(meal["timestamp"]).strftime("%I:%M %p")
             st.write(f"**{meal_time}**")
         st.write(meal["description"])
+        if "interpretation" in meal:
+            st.caption(meal['interpretation'])
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Protein", f"{meal['macros']['protein']}g")
@@ -100,22 +102,31 @@ def estimate_macros(meal_description):
         response = openai.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": """You are a nutrition expert. Estimate the macronutrients for the given meal.
-                Return ONLY a JSON object with protein, carbs, and fat in grams.
-                Example: {"protein": 25, "carbs": 45, "fat": 12}"""},
+                {"role": "system", "content": """You are a nutrition expert. For the given meal description:
+                1. First, explain what you understand about the meal (quantities, ingredients, preparation). Don't give feedback on the pros and cons of the meal.
+                2. Then estimate the macronutrients (protein, carbs, fat in grams)
+                
+                Return a JSON object with:
+                {
+                    "interpretation": "Your understanding of the meal",
+                    "macros": {"protein": X, "carbs": Y, "fat": Z}
+                }"""},
                 {"role": "user", "content": meal_description}
             ]
         )
         print(response)
         # Extract the JSON response
-        macros = json.loads(response.choices[0].message.content)
-        return macros
+        result = json.loads(response.choices[0].message.content)
+        return result
     except Exception as e:
         st.session_state.notification = {
             "message": f"Error estimating macros: {str(e)}",
             "type": "error"
         }
-        return {"protein": 0, "carbs": 0, "fat": 0}
+        return {
+            "interpretation": "Unable to process the description",
+            "macros": {"protein": 0, "carbs": 0, "fat": 0}
+        }
 
 # Initialize session state
 if 'pending_meal' not in st.session_state:
@@ -193,11 +204,12 @@ with tab1:
         
         if submitted and meal_input:
             # Create new meal entry and store in session state
-            macros = estimate_macros(meal_input)
+            result = estimate_macros(meal_input)
+            macros = result["macros"]
 
             if macros["protein"] == 0 and macros["carbs"] == 0 and macros["fat"] == 0:
                 st.session_state.notification = {
-                    "message": "Error estimating macros. Please try again.",
+                    "message": f"Error estimating macros. {result['interpretation']}",
                     "type": "error"
                 }
                 st.rerun()
@@ -208,12 +220,14 @@ with tab1:
                     "id": str(uuid.uuid4()),
                     "timestamp": meal_datetime.isoformat(),
                     "description": meal_input,
-                    "macros": macros
+                    "macros": macros,
+                    "interpretation": result["interpretation"]
                 }
 
     # Show macro breakdown if we have a pending meal
     if st.session_state.pending_meal:
         st.write("### Macro Breakdown")
+        st.caption(st.session_state.pending_meal['interpretation'])
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Protein", f"{st.session_state.pending_meal['macros']['protein']}g")
