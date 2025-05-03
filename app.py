@@ -176,7 +176,19 @@ with tab1:
         meal_input = st.text_input("Meal Description", 
                                  placeholder="e.g., 2 rotis with dal and cucumber salad",
                                  help="Just type what you ate like you're telling a friend",
-                                 label_visibility="hidden")
+                                 label_visibility="collapsed")
+        with st.container():
+            st.markdown("""
+                <style>
+                div[data-testid="stDateInput"] {
+                    width: 200px;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            meal_date = st.date_input("When did you eat this meal?", 
+                                    value=date.today(),
+                                    max_value=date.today(),
+                                    label_visibility="collapsed")
         submitted = st.form_submit_button("Show Macros")
         
         if submitted and meal_input:
@@ -190,9 +202,11 @@ with tab1:
                 }
                 st.rerun()
             else:
+                # Convert date to datetime for timestamp
+                meal_datetime = datetime.combine(meal_date, datetime.now().time())
                 st.session_state.pending_meal = {
                     "id": str(uuid.uuid4()),
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": meal_datetime.isoformat(),
                     "description": meal_input,
                     "macros": macros
                 }
