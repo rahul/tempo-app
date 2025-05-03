@@ -97,75 +97,105 @@ if st.session_state.notification["message"]:
         st.toast(st.session_state.notification["message"], icon="⚠️")
     st.session_state.notification = {"message": None, "type": None}
 
-# Daily macro breakdown
-meals_data = load_meals()
-today_meals = get_today_meals(meals_data)
-daily_totals = calculate_daily_totals(today_meals)
+# Create tabs
+tab1, tab2 = st.tabs(["📅 Today", "📋 History"])
 
-with st.container(border=True):
-    st.write("### Today's Progress")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        protein_percent = (daily_totals["protein"] / protein_goal) * 100
-        st.metric("Protein", f"{daily_totals['protein']}g", f"{protein_percent:.0f}% of goal")
-    with col2:
-        st.metric("Carbs", f"{daily_totals['carbs']}g")
-    with col3:
-        st.metric("Fat", f"{daily_totals['fat']}g")
+# Today Tab
+with tab1:
+    # Daily macro breakdown
+    meals_data = load_meals()
+    today_meals = get_today_meals(meals_data)
+    daily_totals = calculate_daily_totals(today_meals)
 
-# Meal logging
-st.subheader("What did you eat today?")
-with st.form("meal_input_form", clear_on_submit=True):
-    meal_input = st.text_input("Meal description in natural language", 
-                             placeholder="e.g., 2 rotis with dal and cucumber salad",
-                             help="Just type what you ate like you're telling a friend",
-                             label_visibility="hidden")
-    submitted = st.form_submit_button("Show Macros")
-    
-    if submitted and meal_input:
-        # Create new meal entry and store in session state
-        macros = estimate_macros(meal_input)
+    with st.container(border=True):
+        st.write("### Today's Progress")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            protein_percent = (daily_totals["protein"] / protein_goal) * 100
+            st.metric("Protein", f"{daily_totals['protein']}g", f"{protein_percent:.0f}% of goal")
+        with col2:
+            st.metric("Carbs", f"{daily_totals['carbs']}g")
+        with col3:
+            st.metric("Fat", f"{daily_totals['fat']}g")
 
-        if macros["protein"] == 0 and macros["carbs"] == 0 and macros["fat"] == 0:
-            st.session_state.notification = {
-                "message": "Error estimating macros. Please try again.",
-                "type": "error"
-            }
-            st.rerun()
-        else:
-            st.session_state.pending_meal = {
-                "id": str(uuid.uuid4()),
-                "timestamp": datetime.now().isoformat(),
-                "description": meal_input,
-                "macros": macros
-        }
+    # Meal logging
+    st.subheader("What did you eat today?")
+    with st.form("meal_input_form", clear_on_submit=True):
+        meal_input = st.text_input("Meal Description", 
+                                 placeholder="e.g., 2 rotis with dal and cucumber salad",
+                                 help="Just type what you ate like you're telling a friend",
+                                 label_visibility="hidden")
+        submitted = st.form_submit_button("Show Macros")
+        
+        if submitted and meal_input:
+            # Create new meal entry and store in session state
+            macros = estimate_macros(meal_input)
 
-# Show macro breakdown if we have a pending meal
-if st.session_state.pending_meal:
-    st.write("### Macro Breakdown")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        protein_percent = (st.session_state.pending_meal["macros"]["protein"] / protein_goal) * 100
-        st.metric("Protein", f"{st.session_state.pending_meal['macros']['protein']}g", f"{protein_percent:.0f}% of goal")
-    with col2:
-        st.metric("Carbs", f"{st.session_state.pending_meal['macros']['carbs']}g")
-    with col3:
-        st.metric("Fat", f"{st.session_state.pending_meal['macros']['fat']}g")
-    
-    # Second form for confirmation
-    with st.form("meal_confirm_form"):
-        st.write("### Ready to save this meal?")
-        confirmed = st.form_submit_button("Save Meal")
-        if confirmed:
-            # Add new meal and save
-            meals_data["meals"].append(st.session_state.pending_meal)
-            save_meals(meals_data)
-            # Set notification to show after reload
-            st.session_state.notification = {
-                "message": "Meal added successfully!",
-                "type": "success"
-            }
-            # Clear the pending meal
-            st.session_state.pending_meal = None
-            # Reload the page
-            st.rerun() 
+            if macros["protein"] == 0 and macros["carbs"] == 0 and macros["fat"] == 0:
+                st.session_state.notification = {
+                    "message": "Error estimating macros. Please try again.",
+                    "type": "error"
+                }
+                st.rerun()
+            else:
+                st.session_state.pending_meal = {
+                    "id": str(uuid.uuid4()),
+                    "timestamp": datetime.now().isoformat(),
+                    "description": meal_input,
+                    "macros": macros
+                }
+
+    # Show macro breakdown if we have a pending meal
+    if st.session_state.pending_meal:
+        st.write("### Macro Breakdown")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            protein_percent = (st.session_state.pending_meal["macros"]["protein"] / protein_goal) * 100
+            st.metric("Protein", f"{st.session_state.pending_meal['macros']['protein']}g", f"{protein_percent:.0f}% of goal")
+        with col2:
+            st.metric("Carbs", f"{st.session_state.pending_meal['macros']['carbs']}g")
+        with col3:
+            st.metric("Fat", f"{st.session_state.pending_meal['macros']['fat']}g")
+        
+        # Second form for confirmation
+        with st.form("meal_confirm_form"):
+            st.write("### Ready to save this meal?")
+            confirmed = st.form_submit_button("Save Meal")
+            if confirmed:
+                # Add new meal and save
+                meals_data["meals"].append(st.session_state.pending_meal)
+                save_meals(meals_data)
+                # Set notification to show after reload
+                st.session_state.notification = {
+                    "message": "Meal added successfully!",
+                    "type": "success"
+                }
+                # Clear the pending meal
+                st.session_state.pending_meal = None
+                # Reload the page
+                st.rerun()
+
+# History Tab
+with tab2:
+    st.write("### Past Meals")
+    meals_data = load_meals()
+    if not meals_data["meals"]:
+        st.write("No meals logged yet.")
+    else:
+        # Sort meals by date (newest first)
+        sorted_meals = sorted(meals_data["meals"], 
+                            key=lambda x: x["timestamp"], 
+                            reverse=True)
+        
+        for meal in sorted_meals:
+            with st.container(border=True):
+                meal_date = datetime.fromisoformat(meal["timestamp"]).strftime("%B %d, %Y %I:%M %p")
+                st.write(f"**{meal_date}**")
+                st.write(meal["description"])
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Protein", f"{meal['macros']['protein']}g")
+                with col2:
+                    st.metric("Carbs", f"{meal['macros']['carbs']}g")
+                with col3:
+                    st.metric("Fat", f"{meal['macros']['fat']}g") 
