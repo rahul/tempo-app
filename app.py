@@ -2,6 +2,15 @@ import streamlit as st
 import json
 from datetime import datetime, date
 import uuid
+import openai
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+
+# Initialize OpenAI client
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def load_meals():
     try:
@@ -34,6 +43,30 @@ def calculate_daily_totals(meals):
         for macro in totals:
             totals[macro] += meal["macros"][macro]
     return totals
+
+def estimate_macros(meal_description):
+    """Estimate macros using OpenAI API"""
+    try:
+        print(meal_description)
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": """You are a nutrition expert. Estimate the macronutrients for the given meal.
+                Return ONLY a JSON object with protein, carbs, and fat in grams.
+                Example: {"protein": 25, "carbs": 45, "fat": 12}"""},
+                {"role": "user", "content": meal_description}
+            ]
+        )
+        print(response)
+        # Extract the JSON response
+        macros = json.loads(response.choices[0].message.content)
+        return macros
+    except Exception as e:
+        st.session_state.notification = {
+            "message": f"Error estimating macros: {str(e)}",
+            "type": "error"
+        }
+        return {"protein": 0, "carbs": 0, "fat": 0}
 
 # Initialize session state
 if 'pending_meal' not in st.session_state:
@@ -83,22 +116,28 @@ with st.container(border=True):
 # Meal logging
 st.subheader("What did you eat today?")
 with st.form("meal_input_form", clear_on_submit=True):
-    meal_input = st.text_input("", 
+    meal_input = st.text_input("Meal description in natural language", 
                              placeholder="e.g., 2 rotis with dal and cucumber salad",
-                             help="Just type what you ate like you're telling a friend")
+                             help="Just type what you ate like you're telling a friend",
+                             label_visibility="hidden")
     submitted = st.form_submit_button("Show Macros")
     
     if submitted and meal_input:
         # Create new meal entry and store in session state
-        st.session_state.pending_meal = {
-            "id": str(uuid.uuid4()),
-            "timestamp": datetime.now().isoformat(),
-            "description": meal_input,
-            "macros": {
-                "protein": 25,  # Dummy value for now
-                "carbs": 45,    # Dummy value for now
-                "fat": 12       # Dummy value for now
+        macros = estimate_macros(meal_input)
+
+        if macros["protein"] == 0 and macros["carbs"] == 0 and macros["fat"] == 0:
+            st.session_state.notification = {
+                "message": "Error estimating macros. Please try again.",
+                "type": "error"
             }
+            st.rerun()
+        else:
+            st.session_state.pending_meal = {
+                "id": str(uuid.uuid4()),
+                "timestamp": datetime.now().isoformat(),
+                "description": meal_input,
+                "macros": macros
         }
 
 # Show macro breakdown if we have a pending meal
