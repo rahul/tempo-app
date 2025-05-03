@@ -62,17 +62,36 @@ def display_meal_card(meal, show_date=True, tab_name=""):
         with col3:
             st.metric("Fat", f"{meal['macros']['fat']}g")
         
-        # Add delete button
-        if st.button("Delete", key=f"delete_{tab_name}_{meal['id']}"):
-            meals_data = load_meals()
-            # Remove the meal from the list
-            meals_data["meals"] = [m for m in meals_data["meals"] if m["id"] != meal["id"]]
-            save_meals(meals_data)
-            st.session_state.notification = {
-                "message": "Meal deleted successfully!",
-                "type": "success"
-            }
-            st.rerun()
+        # Add action buttons
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("Delete", key=f"delete_{tab_name}_{meal['id']}"):
+                meals_data = load_meals()
+                # Remove the meal from the list
+                meals_data["meals"] = [m for m in meals_data["meals"] if m["id"] != meal["id"]]
+                save_meals(meals_data)
+                st.session_state.notification = {
+                    "message": "Meal deleted successfully!",
+                    "type": "success"
+                }
+                st.rerun()
+        with col2:
+            if st.button("Repeat", key=f"repeat_{tab_name}_{meal['id']}"):
+                # Create and save the repeated meal
+                repeated_meal = {
+                    "id": str(uuid.uuid4()),
+                    "timestamp": datetime.now().isoformat(),
+                    "description": meal["description"],
+                    "macros": meal["macros"]
+                }
+                meals_data = load_meals()
+                meals_data["meals"].append(repeated_meal)
+                save_meals(meals_data)
+                st.session_state.notification = {
+                    "message": "Meal repeated successfully!",
+                    "type": "success"
+                }
+                st.rerun()
 
 def estimate_macros(meal_description):
     """Estimate macros using OpenAI API"""
