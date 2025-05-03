@@ -225,7 +225,7 @@ with tab1:
             result = estimate_macros(meal_input)
             macros = result["macros"]
 
-            if macros["protein"] == 0 and macros["carbs"] == 0 and macros["fat"] == 0:
+            if result["interpretation"] == "Unable to process the description":
                 st.session_state.notification = {
                     "message": f"Error estimating macros. {result['interpretation']}",
                     "type": "error"
