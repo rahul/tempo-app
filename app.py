@@ -100,7 +100,6 @@ def display_meal_card(meal, show_date=True, tab_name=""):
 def estimate_macros(meal_description):
     """Estimate macros using OpenAI API"""
     try:
-        print(meal_description)
         response = openai.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -116,7 +115,7 @@ def estimate_macros(meal_description):
                 {"role": "user", "content": meal_description}
             ]
         )
-        print(response)
+
         # Extract the JSON response
         result = json.loads(response.choices[0].message.content)
         return result
