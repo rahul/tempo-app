@@ -44,7 +44,7 @@ def calculate_daily_totals(meals):
             totals[macro] += meal["macros"][macro]
     return totals
 
-def display_meal_card(meal, show_date=True):
+def display_meal_card(meal, show_date=True, tab_name=""):
     """Display a meal in a bordered container with its details"""
     with st.container(border=True):
         if show_date:
@@ -61,6 +61,18 @@ def display_meal_card(meal, show_date=True):
             st.metric("Carbs", f"{meal['macros']['carbs']}g")
         with col3:
             st.metric("Fat", f"{meal['macros']['fat']}g")
+        
+        # Add delete button
+        if st.button("Delete", key=f"delete_{tab_name}_{meal['id']}"):
+            meals_data = load_meals()
+            # Remove the meal from the list
+            meals_data["meals"] = [m for m in meals_data["meals"] if m["id"] != meal["id"]]
+            save_meals(meals_data)
+            st.session_state.notification = {
+                "message": "Meal deleted successfully!",
+                "type": "success"
+            }
+            st.rerun()
 
 def estimate_macros(meal_description):
     """Estimate macros using OpenAI API"""
@@ -199,7 +211,7 @@ with tab1:
         st.write("No meals logged yet today.")
     else:
         for meal in today_meals:
-            display_meal_card(meal, show_date=False)
+            display_meal_card(meal, show_date=False, tab_name="today")
 
 # History Tab
 with tab2:
@@ -214,4 +226,4 @@ with tab2:
                             reverse=True)
         
         for meal in sorted_meals:
-            display_meal_card(meal, show_date=True) 
+            display_meal_card(meal, show_date=True, tab_name="history") 
