@@ -259,7 +259,11 @@ with tab1:
     if not today_meals:
         st.write("No meals logged yet today.")
     else:
-        for meal in today_meals:
+        # Sort meals by timestamp (newest first)
+        sorted_meals = sorted(today_meals, 
+                            key=lambda x: x["timestamp"], 
+                            reverse=True)
+        for meal in sorted_meals:
             display_meal_card(meal, show_date=False, tab_name="today")
 
 # History Tab
