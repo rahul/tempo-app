@@ -44,6 +44,24 @@ def calculate_daily_totals(meals):
             totals[macro] += meal["macros"][macro]
     return totals
 
+def display_meal_card(meal, show_date=True):
+    """Display a meal in a bordered container with its details"""
+    with st.container(border=True):
+        if show_date:
+            meal_date = datetime.fromisoformat(meal["timestamp"]).strftime("%B %d, %Y %I:%M %p")
+            st.write(f"**{meal_date}**")
+        else:
+            meal_time = datetime.fromisoformat(meal["timestamp"]).strftime("%I:%M %p")
+            st.write(f"**{meal_time}**")
+        st.write(meal["description"])
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Protein", f"{meal['macros']['protein']}g")
+        with col2:
+            st.metric("Carbs", f"{meal['macros']['carbs']}g")
+        with col3:
+            st.metric("Fat", f"{meal['macros']['fat']}g")
+
 def estimate_macros(meal_description):
     """Estimate macros using OpenAI API"""
     try:
@@ -175,6 +193,14 @@ with tab1:
                 # Reload the page
                 st.rerun()
 
+    # Today's meals
+    st.write("### Today's Meals")
+    if not today_meals:
+        st.write("No meals logged yet today.")
+    else:
+        for meal in today_meals:
+            display_meal_card(meal, show_date=False)
+
 # History Tab
 with tab2:
     st.write("### Past Meals")
@@ -188,14 +214,4 @@ with tab2:
                             reverse=True)
         
         for meal in sorted_meals:
-            with st.container(border=True):
-                meal_date = datetime.fromisoformat(meal["timestamp"]).strftime("%B %d, %Y %I:%M %p")
-                st.write(f"**{meal_date}**")
-                st.write(meal["description"])
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Protein", f"{meal['macros']['protein']}g")
-                with col2:
-                    st.metric("Carbs", f"{meal['macros']['carbs']}g")
-                with col3:
-                    st.metric("Fat", f"{meal['macros']['fat']}g") 
+            display_meal_card(meal, show_date=True) 
