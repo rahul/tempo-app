@@ -249,6 +249,8 @@ Return a JSON object with:
         {{
             "meal": "meal description with portions",
             "protein": protein_in_grams,
+            "carbs": carbs_in_grams,
+            "fat": fat_in_grams,
             "calories": calories
         }}
     ],
@@ -419,10 +421,14 @@ with tab1:
             for suggestion in suggestions["suggestions"]:
                 with st.container(border=True):
                     st.write(f"**{suggestion['meal']}**")
-                    col1, col2 = st.columns(2)
+                    col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         st.metric("Protein", f"{suggestion['protein']}g")
                     with col2:
+                        st.metric("Carbs", f"{suggestion['carbs']}g")
+                    with col3:
+                        st.metric("Fat", f"{suggestion['fat']}g")
+                    with col4:
                         st.metric("Calories", f"{suggestion['calories']} kcal")
         if suggestions["note"]:
             st.info(suggestions["note"])
