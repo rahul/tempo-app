@@ -26,13 +26,12 @@ def get_protein_choices():
     # If not in cache, try to get from OpenAI
     try:
         response = openai.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-nano",
             messages=[
-                {"role": "system", "content": """You are a nutrition expert familiar with Indian cuisine. 
-                List 20 popular protein sources in India, including both vegetarian and non-vegetarian options.
+                {"role": "system", "content": """You are a nutrition expert familiar with Indian cuisine."""},
+                {"role": "user", "content": """List 20 popular protein sources (not recipes or combinations) used by fitness enthusiasts and athletes in India. Don't be too specific (eg: don't list 'chicken breast' as a protein source, just 'chicken'). Derivates are okay (eg: 'whey' and 'curd' are okay, even if 'milk' is listed).
                 Return ONLY a JSON array of strings, no explanations.
-                Example: ["Chicken", "Dal", "Paneer"]"""},
-                {"role": "user", "content": "List popular protein sources in India"}
+                Example: ["Chicken", "Paneer", "Whey Protein"]"""}
             ]
         )
         protein_choices = json.loads(response.choices[0].message.content)
@@ -220,6 +219,60 @@ def save_preferences(preferences):
     with open('preferences.json', 'w') as f:
         json.dump(preferences, f, indent=2)
 
+def get_meal_suggestions(goals, preferences, today_meals):
+    """Get meal suggestions from ChatGPT based on goals and progress"""
+    # Calculate remaining time
+    current_time = datetime.now()
+    last_meal_time = datetime.combine(current_time.date(), datetime.strptime("18:00", "%H:%M").time())
+    hours_remaining = (last_meal_time - current_time).total_seconds() / 3600
+    
+    # Calculate remaining macros
+    daily_totals = calculate_daily_totals(today_meals)
+    remaining_protein = goals["protein_goal"] - daily_totals["protein"]
+    remaining_calories = goals["daily_calories"] - daily_totals["calories"]
+    
+    # Prepare the prompt
+    prompt = f"""You are a nutrition expert helping with meal planning. Here's the situation:
+- Time left until end of last meal of the day: {hours_remaining:.1f} hours
+- Remaining protein goal: {remaining_protein}g
+- Remaining calories: {remaining_calories} kcal
+- Preferred protein sources: {', '.join(preferences['protein_sources'])}
+
+Please suggest 1-2 meals that:
+1. Use the preferred protein sources
+2. Help make significant progress towards the remaining goals
+3. Are realistic and healthy (no extreme suggestions)
+4. Include portion sizes
+5. Are appropriate for the time of day
+
+If there's not enough time to make significant progress, say so and explain why.
+
+Return a JSON object with:
+{{
+    "suggestions": [
+        {{
+            "meal": "meal description with portions",
+            "protein": protein_in_grams,
+            "calories": calories
+        }}
+    ],
+    "note": "any important notes about timing or feasibility"
+}}"""
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt}
+            ]
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {
+            "suggestions": [],
+            "note": f"Error getting suggestions: {str(e)}"
+        }
+
 # Initialize session state
 if 'pending_meal' not in st.session_state:
     st.session_state.pending_meal = None
@@ -338,6 +391,25 @@ with tab1:
             st.metric("Calories", f"{daily_totals['calories']} kcal", 
                      f"{'+' if calories_diff > 0 else ''}{calories_diff} kcal",
                      delta_color=delta_color)
+
+    # Get meal suggestions
+    if st.button("Get Meal Suggestions"):
+        goals = load_goals()
+        preferences = load_preferences()
+        suggestions = get_meal_suggestions(goals, preferences, today_meals)
+        
+        st.write("### Meal Suggestions")
+        if suggestions["suggestions"]:
+            for suggestion in suggestions["suggestions"]:
+                with st.container(border=True):
+                    st.write(f"**{suggestion['meal']}**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Protein", f"{suggestion['protein']}g")
+                    with col2:
+                        st.metric("Calories", f"{suggestion['calories']} kcal")
+        if suggestions["note"]:
+            st.info(suggestions["note"])
 
     # Meal logging
     st.subheader("What did you eat today?")
