@@ -14,7 +14,6 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_protein_choices():
     """Get list of popular protein choices in India from ChatGPT"""
-    # First, try to get choices from cache
     try:
         with open('cache.json', 'r') as f:
             cache = json.load(f)
@@ -29,7 +28,7 @@ def get_protein_choices():
             model="gpt-4.1-nano",
             messages=[
                 {"role": "system", "content": """You are a nutrition expert familiar with Indian cuisine."""},
-                {"role": "user", "content": """List 20 popular protein sources (not recipes or combinations) used by fitness enthusiasts and athletes in India. Don't be too specific (eg: don't list 'chicken breast' as a protein source, just 'chicken'). Derivates are okay (eg: 'whey' and 'curd' are okay, even if 'milk' is listed).
+                {"role": "user", "content": """List top 5 most popular protein sources (not recipes or combinations) used by fitness enthusiasts and athletes in India.
                 Return ONLY a JSON array of strings, no explanations.
                 Example: ["Chicken", "Paneer", "Whey Protein"]"""}
             ]
@@ -38,10 +37,8 @@ def get_protein_choices():
     except Exception as e:
         # Fallback to default list if API call fails
         protein_choices = [
-            "Chicken", "Fish", "Eggs", "Dal", "Paneer", "Tofu",
-            "Lentils", "Beans", "Nuts", "Milk", "Yogurt", "Cheese",
-            "Mutton", "Prawns", "Crab", "Soy Chunks", "Quinoa",
-            "Chickpeas", "Peas", "Soy Milk"
+            "Chicken", "Paneer", "Whey Protein",
+            "Eggs", "Dal"
         ]
 
     # Save choices to cache
@@ -54,17 +51,16 @@ def get_protein_choices():
         preferences = load_preferences()
     except FileNotFoundError:
         preferences = {"protein_sources": []}
+        save_preferences(preferences)
 
     # Filter out preferences that aren't in the choices
     preferences["protein_sources"] = [
         protein for protein in preferences["protein_sources"]
         if protein in protein_choices
     ]
+    save_preferences(preferences)
 
-    try:
-        return protein_choices
-    finally:
-        save_preferences(preferences)
+    return protein_choices
 
 def load_meals():
     try:
@@ -314,17 +310,26 @@ with st.sidebar:
     # Get protein choices from cache or ChatGPT
     protein_options = get_protein_choices()
     
+    # Add refresh button
+    if st.button("🔄 Refresh Protein Choices"):
+        # Delete cache to force refresh
+        try:
+            os.remove('cache.json')
+        except FileNotFoundError:
+            pass
+        st.rerun()
+    
     # Filter out invalid preferences
     valid_preferences = [
         protein for protein in preferences["protein_sources"]
         if protein in protein_options
     ]
     
-    selected_proteins = st.multiselect(
-        "Preferred Protein Sources",
-        options=protein_options,
-        default=valid_preferences
-    )
+    # Show protein options as checkboxes
+    selected_proteins = []
+    for protein in protein_options:
+        if st.checkbox(protein, value=protein in valid_preferences):
+            selected_proteins.append(protein)
     
     # Save preferences if they've changed
     if selected_proteins != preferences["protein_sources"]:
