@@ -129,6 +129,24 @@ def estimate_macros(meal_description):
             "macros": {"protein": 0, "carbs": 0, "fat": 0}
         }
 
+def load_goals():
+    try:
+        with open('goals.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Create goals.json with default values if it doesn't exist
+        default_goals = {
+            "daily_calories": 2000,
+            "protein_goal": 150
+        }
+        with open('goals.json', 'w') as f:
+            json.dump(default_goals, f, indent=2)
+        return default_goals
+
+def save_goals(goals):
+    with open('goals.json', 'w') as f:
+        json.dump(goals, f, indent=2)
+
 # Initialize session state
 if 'pending_meal' not in st.session_state:
     st.session_state.pending_meal = None
@@ -140,9 +158,25 @@ with st.sidebar:
     st.title("⚙️ Settings")
     st.write("Configure your meal tracking preferences")
     
+    # Load current goals
+    goals = load_goals()
+    
     # Add some basic settings
-    daily_calories = st.number_input("Daily Calorie Goal", min_value=1000, max_value=5000, value=2000, step=100)
-    protein_goal = st.number_input("Protein Goal (g)", min_value=0, max_value=500, value=150, step=5)
+    daily_calories = st.number_input("Daily Calorie Goal", min_value=1000, max_value=5000, value=goals["daily_calories"], step=100)
+    protein_goal = st.number_input("Protein Goal (g)", min_value=0, max_value=500, value=goals["protein_goal"], step=5)
+    
+    # Save goals if they've changed
+    if daily_calories != goals["daily_calories"] or protein_goal != goals["protein_goal"]:
+        new_goals = {
+            "daily_calories": daily_calories,
+            "protein_goal": protein_goal
+        }
+        save_goals(new_goals)
+        st.session_state.notification = {
+            "message": "Goals updated successfully!",
+            "type": "success"
+        }
+        st.rerun()
 
 # Main content
 st.title("🥗 Tempo")
