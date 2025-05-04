@@ -183,12 +183,17 @@ def load_goals():
     try:
         with open('goals.json', 'r') as f:
             goals = json.load(f)
+            # Add last_meal_time if it doesn't exist
+            if "last_meal_time" not in goals:
+                goals["last_meal_time"] = "18:00"
+                save_goals(goals)
             return goals
     except FileNotFoundError:
         # Create goals.json with default values if it doesn't exist
         default_goals = {
             "daily_calories": 2000,
-            "protein_goal": 150
+            "protein_goal": 150,
+            "last_meal_time": "18:00"  # Default to 6 PM
         }
         with open('goals.json', 'w') as f:
             json.dump(default_goals, f, indent=2)
@@ -201,11 +206,17 @@ def save_goals(goals):
 def load_preferences():
     try:
         with open('preferences.json', 'r') as f:
-            return json.load(f)
+            preferences = json.load(f)
+            # Add last_meal_time if it doesn't exist
+            if "last_meal_time" not in preferences:
+                preferences["last_meal_time"] = "18:00"
+                save_preferences(preferences)
+            return preferences
     except FileNotFoundError:
         # Create preferences.json with default values if it doesn't exist
         default_preferences = {
-            "protein_sources": []
+            "protein_sources": [],
+            "last_meal_time": "18:00"  # Default to 6 PM
         }
         with open('preferences.json', 'w') as f:
             json.dump(default_preferences, f, indent=2)
@@ -219,7 +230,7 @@ def get_meal_suggestions(goals, preferences, today_meals):
     """Get meal suggestions from ChatGPT based on goals and progress"""
     # Calculate remaining time
     current_time = datetime.now()
-    last_meal_time = datetime.combine(current_time.date(), datetime.strptime("18:00", "%H:%M").time())
+    last_meal_time = datetime.combine(current_time.date(), datetime.strptime(preferences["last_meal_time"], "%H:%M").time())
     hours_remaining = (last_meal_time - current_time).total_seconds() / 3600
     
     # Calculate remaining macros
@@ -229,7 +240,7 @@ def get_meal_suggestions(goals, preferences, today_meals):
     
     # Prepare the prompt
     prompt = f"""You are a nutrition expert helping with meal planning. Here's the situation:
-- Time left until end of last meal of the day: {hours_remaining:.1f} hours
+- Time left until last meal of the day ({preferences['last_meal_time']}): {hours_remaining:.1f} hours
 - Remaining protein goal: {remaining_protein}g
 - Remaining calories: {remaining_calories} kcal
 - Preferred protein sources: {', '.join(preferences['protein_sources'])}
@@ -293,12 +304,20 @@ with st.sidebar:
     st.title("⚙️ Settings")
     st.write("Configure your meal tracking preferences")
     
-    # Load current goals
+    # Load current goals and preferences
     goals = load_goals()
+    preferences = load_preferences()
     
     # Add some basic settings
     daily_calories = st.number_input("Daily Calorie Goal", min_value=1000, max_value=5000, value=goals["daily_calories"], step=100)
     protein_goal = st.number_input("Protein Goal (g)", min_value=0, max_value=500, value=goals["protein_goal"], step=5)
+    
+    # Last meal time setting
+    last_meal_time = st.time_input(
+        "Last Meal Time",
+        value=datetime.strptime(preferences["last_meal_time"], "%H:%M").time(),
+        help="This is used to calculate how many meals you can have before the end of the day"
+    )
     
     # Save goals if they've changed
     if daily_calories != goals["daily_calories"] or protein_goal != goals["protein_goal"]:
@@ -313,12 +332,22 @@ with st.sidebar:
         }
         st.rerun()
 
+    # Save preferences if they've changed
+    if last_meal_time.strftime("%H:%M") != preferences["last_meal_time"]:
+        new_preferences = {
+            "protein_sources": preferences["protein_sources"],
+            "last_meal_time": last_meal_time.strftime("%H:%M")
+        }
+        save_preferences(new_preferences)
+        st.session_state.notification = {
+            "message": "Preferences updated successfully!",
+            "type": "success"
+        }
+        st.rerun()
+
     # Protein Preferences
     st.write("### Protein Preferences")
     st.write("Select your preferred protein sources")
-    
-    # Load current preferences
-    preferences = load_preferences()
     
     # Get protein choices from cache or ChatGPT
     protein_options = get_protein_choices()
