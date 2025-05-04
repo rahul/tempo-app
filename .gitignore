@@ -176,3 +176,4 @@ cython_debug/
 meals.json
 goals.json
 preferences.json
+cache.json

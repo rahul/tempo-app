@@ -12,6 +12,61 @@ load_dotenv()
 # Initialize OpenAI client
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+def get_protein_choices():
+    """Get list of popular protein choices in India from ChatGPT"""
+    # First, try to get choices from cache
+    try:
+        with open('cache.json', 'r') as f:
+            cache = json.load(f)
+            if "protein_choices" in cache:
+                return cache["protein_choices"]
+    except FileNotFoundError:
+        cache = {}
+
+    # If not in cache, try to get from OpenAI
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": """You are a nutrition expert familiar with Indian cuisine. 
+                List 20 popular protein sources in India, including both vegetarian and non-vegetarian options.
+                Return ONLY a JSON array of strings, no explanations.
+                Example: ["Chicken", "Dal", "Paneer"]"""},
+                {"role": "user", "content": "List popular protein sources in India"}
+            ]
+        )
+        protein_choices = json.loads(response.choices[0].message.content)
+    except Exception as e:
+        # Fallback to default list if API call fails
+        protein_choices = [
+            "Chicken", "Fish", "Eggs", "Dal", "Paneer", "Tofu",
+            "Lentils", "Beans", "Nuts", "Milk", "Yogurt", "Cheese",
+            "Mutton", "Prawns", "Crab", "Soy Chunks", "Quinoa",
+            "Chickpeas", "Peas", "Soy Milk"
+        ]
+
+    # Save choices to cache
+    cache["protein_choices"] = protein_choices
+    with open('cache.json', 'w') as f:
+        json.dump(cache, f, indent=2)
+
+    # Now handle preferences
+    try:
+        preferences = load_preferences()
+    except FileNotFoundError:
+        preferences = {"protein_sources": []}
+
+    # Filter out preferences that aren't in the choices
+    preferences["protein_sources"] = [
+        protein for protein in preferences["protein_sources"]
+        if protein in protein_choices
+    ]
+
+    try:
+        return protein_choices
+    finally:
+        save_preferences(preferences)
+
 def load_meals():
     try:
         with open('meals.json', 'r') as f:
@@ -133,33 +188,12 @@ def load_goals():
     try:
         with open('goals.json', 'r') as f:
             goals = json.load(f)
-            # Add protein_preferences if they don't exist
-            if "protein_preferences" not in goals:
-                goals["protein_preferences"] = {
-                    "chicken": 0,
-                    "fish": 0,
-                    "eggs": 0,
-                    "dal": 0,
-                    "paneer": 0,
-                    "tofu": 0,
-                    "other": 0
-                }
-                save_goals(goals)  # Save the updated goals
             return goals
     except FileNotFoundError:
         # Create goals.json with default values if it doesn't exist
         default_goals = {
             "daily_calories": 2000,
-            "protein_goal": 150,
-            "protein_preferences": {
-                "chicken": 0,
-                "fish": 0,
-                "eggs": 0,
-                "dal": 0,
-                "paneer": 0,
-                "tofu": 0,
-                "other": 0
-            }
+            "protein_goal": 150
         }
         with open('goals.json', 'w') as f:
             json.dump(default_goals, f, indent=2)
@@ -224,18 +258,19 @@ with st.sidebar:
     # Load current preferences
     preferences = load_preferences()
     
-    # Protein sources options
-    protein_options = [
-        "Chicken", "Fish", "Eggs", 
-        "Dal", "Paneer", "Tofu",
-        "Beef", "Pork", "Turkey",
-        "Lentils", "Beans", "Nuts"
+    # Get protein choices from cache or ChatGPT
+    protein_options = get_protein_choices()
+    
+    # Filter out invalid preferences
+    valid_preferences = [
+        protein for protein in preferences["protein_sources"]
+        if protein in protein_options
     ]
     
     selected_proteins = st.multiselect(
         "Preferred Protein Sources",
         options=protein_options,
-        default=preferences["protein_sources"]
+        default=valid_preferences
     )
     
     # Save preferences if they've changed
