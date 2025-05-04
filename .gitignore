@@ -174,3 +174,5 @@ cython_debug/
 .pypirc
 
 meals.json
+goals.json
+preferences.json
