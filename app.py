@@ -132,12 +132,34 @@ def estimate_macros(meal_description):
 def load_goals():
     try:
         with open('goals.json', 'r') as f:
-            return json.load(f)
+            goals = json.load(f)
+            # Add protein_preferences if they don't exist
+            if "protein_preferences" not in goals:
+                goals["protein_preferences"] = {
+                    "chicken": 0,
+                    "fish": 0,
+                    "eggs": 0,
+                    "dal": 0,
+                    "paneer": 0,
+                    "tofu": 0,
+                    "other": 0
+                }
+                save_goals(goals)  # Save the updated goals
+            return goals
     except FileNotFoundError:
         # Create goals.json with default values if it doesn't exist
         default_goals = {
             "daily_calories": 2000,
-            "protein_goal": 150
+            "protein_goal": 150,
+            "protein_preferences": {
+                "chicken": 0,
+                "fish": 0,
+                "eggs": 0,
+                "dal": 0,
+                "paneer": 0,
+                "tofu": 0,
+                "other": 0
+            }
         }
         with open('goals.json', 'w') as f:
             json.dump(default_goals, f, indent=2)
@@ -146,6 +168,23 @@ def load_goals():
 def save_goals(goals):
     with open('goals.json', 'w') as f:
         json.dump(goals, f, indent=2)
+
+def load_preferences():
+    try:
+        with open('preferences.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Create preferences.json with default values if it doesn't exist
+        default_preferences = {
+            "protein_sources": []
+        }
+        with open('preferences.json', 'w') as f:
+            json.dump(default_preferences, f, indent=2)
+        return default_preferences
+
+def save_preferences(preferences):
+    with open('preferences.json', 'w') as f:
+        json.dump(preferences, f, indent=2)
 
 # Initialize session state
 if 'pending_meal' not in st.session_state:
@@ -174,6 +213,39 @@ with st.sidebar:
         save_goals(new_goals)
         st.session_state.notification = {
             "message": "Goals updated successfully!",
+            "type": "success"
+        }
+        st.rerun()
+
+    # Protein Preferences
+    st.write("### Protein Preferences")
+    st.write("Select your preferred protein sources")
+    
+    # Load current preferences
+    preferences = load_preferences()
+    
+    # Protein sources options
+    protein_options = [
+        "Chicken", "Fish", "Eggs", 
+        "Dal", "Paneer", "Tofu",
+        "Beef", "Pork", "Turkey",
+        "Lentils", "Beans", "Nuts"
+    ]
+    
+    selected_proteins = st.multiselect(
+        "Preferred Protein Sources",
+        options=protein_options,
+        default=preferences["protein_sources"]
+    )
+    
+    # Save preferences if they've changed
+    if selected_proteins != preferences["protein_sources"]:
+        new_preferences = {
+            "protein_sources": selected_proteins
+        }
+        save_preferences(new_preferences)
+        st.session_state.notification = {
+            "message": "Protein preferences updated!",
             "type": "success"
         }
         st.rerun()
