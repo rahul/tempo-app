@@ -13,7 +13,36 @@ python-dotenv = "^1.1.0"
 openai = "^1.77.0"
 watchdog = "^3.0.0"
 
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.0.0"
+flake8-docstrings = "^1.7.0"
+flake8-bugbear = "^24.2.6"
+flake8-comprehensions = "^3.14.0"
+flake8-import-order = "^0.18.2"
+black = "^24.2.0"
+pre-commit = "^3.6.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+per-file-ignores = [
+    "__init__.py:F401",
+]
+docstring-convention = "google"
+import-order-style = "google"
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+include = '\.pyi?$'
