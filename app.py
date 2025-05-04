@@ -257,12 +257,23 @@ Return a JSON object with:
 
     try:
         response = openai.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-nano",
             messages=[
                 {"role": "system", "content": prompt}
             ]
         )
-        return json.loads(response.choices[0].message.content)
+        response_text = response.choices[0].message.content.strip()
+        if not response_text:
+            raise ValueError("Empty response from ChatGPT")
+            
+        try:
+            suggestions = json.loads(response_text)
+            if not isinstance(suggestions, dict) or "suggestions" not in suggestions:
+                raise ValueError("Invalid response format")
+            return suggestions
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON response: {response_text}")
+            
     except Exception as e:
         return {
             "suggestions": [],
